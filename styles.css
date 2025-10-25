@@ -204,6 +204,8 @@ a {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: calc(100vh - 220px);
+  overflow: hidden;
 }
 
 .card-header h2 {
@@ -274,7 +276,6 @@ a {
   .map-card {
     height: auto;
     min-height: 320px;
-    aspect-ratio: auto;
   }
 
   #map {
