@@ -257,6 +257,10 @@
       details.innerHTML = detailLines.join('<br>');
       li.appendChild(title);
       li.appendChild(details);
+      const actions = document.createElement('div');
+      actions.className = 'result-actions';
+      actions.appendChild(createDirectionsLink(site));
+      li.appendChild(actions);
       li.addEventListener('click', () => focusSite(site, { shouldScroll: false }));
       li.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -277,13 +281,15 @@
   }
 
   function createPopup(site) {
+    const directionsUrl = buildDirectionsUrl(site);
     return `
       <strong>${escapeHtml(site.name)}</strong><br>
       ${escapeHtml(site.city)} / ${escapeHtml(site.address)}<br>
       設置場所: ${escapeHtml(site.location)}<br>
       利用可能: ${escapeHtml(site.availableDays)} ${escapeHtml(site.availableHours)}<br>
       パッド: ${escapeHtml(site.padType)}<br>
-      電話: ${escapeHtml(site.phone || '―')}
+      電話: ${escapeHtml(site.phone || '―')}<br>
+      <a class="popup-directions" href="${escapeHtml(directionsUrl)}" target="_blank" rel="noreferrer noopener">道案内</a>
     `;
   }
 
@@ -441,5 +447,28 @@
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  function buildDirectionsUrl(site) {
+    const lat = Number(site.lat);
+    const lng = Number(site.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const destination = encodeURIComponent(`${lat},${lng}`);
+      return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+    }
+    const query = encodeURIComponent(site.address || site.name || 'AED');
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  }
+
+  function createDirectionsLink(site) {
+    const link = document.createElement('a');
+    link.className = 'guide-button';
+    link.href = buildDirectionsUrl(site);
+    link.target = '_blank';
+    link.rel = 'noreferrer noopener';
+    link.textContent = '道案内';
+    link.setAttribute('aria-label', `${site.name} への道案内を開く`);
+    link.addEventListener('click', (event) => event.stopPropagation());
+    return link;
   }
 })();

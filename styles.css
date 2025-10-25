@@ -251,6 +251,44 @@ a {
   color: var(--muted);
 }
 
+.result-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.guide-button,
+.popup-directions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  width: max-content;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.guide-button:hover,
+.guide-button:focus-visible,
+.popup-directions:hover,
+.popup-directions:focus-visible {
+  background: #166072;
+  color: #fff;
+}
+
+.guide-button:focus-visible,
+.popup-directions:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 .result-list li.active {
   border-color: var(--accent);
   background: rgba(31, 122, 140, 0.08);
