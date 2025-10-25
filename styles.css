@@ -125,7 +125,7 @@ a {
 
 .insights {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   gap: 1.1rem;
   min-height: 0;
   height: 100%;
@@ -157,22 +157,12 @@ a {
   font-weight: 700;
 }
 
-.chart-card,
 .table-card {
   background: var(--panel);
   border-radius: 1rem;
   border: 1px solid var(--border);
   padding: 1.25rem;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-}
-
-.chart-card canvas {
-  width: 100%;
-  min-height: 240px;
-}
-
-.chart-card {
-  min-height: 0;
 }
 
 .table-card {

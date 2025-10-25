@@ -1,8 +1,6 @@
 (() => {
   const DATA_URL = 'data/aed.geojson';
   const MAX_LIST_ITEMS = 30;
-  const DEFAULT_BAR_COLOR = '#4e79a7';
-  const HIGHLIGHT_BAR_COLOR = '#f45b69';
   const numberFmt = new Intl.NumberFormat('ja-JP');
   const collator = new Intl.Collator('ja-JP');
 
@@ -17,7 +15,6 @@
   let allSites = [];
   let filteredSites = [];
   let cityCountMap = new Map();
-  let chartInstance = null;
 
   const map = L.map('map', {
     center: [35.99, 139.66],
@@ -60,8 +57,6 @@
       populateCitySelect();
       renderMarkers(filteredSites, { fitToData: true });
       renderList(filteredSites);
-      highlightSelection();
-      setupChart();
       bindEvents();
     } catch (error) {
       console.error(error);
@@ -136,7 +131,6 @@
     updateStats();
     renderMarkers(filteredSites, { fitToData: shouldFit });
     renderList(filteredSites);
-    highlightSelection();
   }
 
   function renderMarkers(data, { fitToData } = { fitToData: false }) {
@@ -188,83 +182,6 @@
     filteredCountEl.textContent = numberFmt.format(filteredSites.length);
   }
 
-  function setupChart() {
-    if (!window.Chart) {
-      console.warn('Chart.js が読み込まれていません。');
-      return;
-    }
-
-    const topCities = Array.from(cityCountMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20);
-    const counts = topCities.map(([, count]) => count);
-    const yAxisScale = getNiceScale(counts);
-
-    const ctx = document.getElementById('cityChart').getContext('2d');
-    chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: topCities.map(([city]) => city),
-        datasets: [
-          {
-            label: 'AED 設置数',
-            data: topCities.map(([, count]) => count),
-            backgroundColor: topCities.map(() => DEFAULT_BAR_COLOR)
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (context) => `${context.formattedValue} 件`
-            }
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              autoSkip: false,
-              maxRotation: 45,
-              minRotation: 30
-            }
-          },
-          y: {
-            beginAtZero: true,
-            suggestedMax: yAxisScale.suggestedMax,
-            ticks: {
-              stepSize: yAxisScale.stepSize,
-              callback: (value) => `${value} 件`
-            },
-            title: { display: true, text: '件数' }
-          }
-        }
-      }
-    });
-
-    ctx.canvas.addEventListener('click', (event) => {
-      const points = chartInstance.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-      if (!points.length) return;
-      const index = points[0].index;
-      const cityName = chartInstance.data.labels[index];
-      citySelect.value = cityName;
-      applyFilters({ shouldFit: true });
-    });
-  }
-
-  function highlightSelection() {
-    if (!chartInstance) return;
-    const selectedCity = citySelect.value;
-    const colors = chartInstance.data.labels.map((label) => (
-      selectedCity !== 'all' && label === selectedCity ? HIGHLIGHT_BAR_COLOR : DEFAULT_BAR_COLOR
-    ));
-    chartInstance.data.datasets[0].backgroundColor = colors;
-    chartInstance.update('none');
-  }
-
   function createPopup(site) {
     return `
       <strong>${escapeHtml(site.name)}</strong><br>
@@ -300,26 +217,6 @@
     return (...args) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => fn.apply(null, args), wait);
-    };
-  }
-
-  function getNiceScale(values = []) {
-    const maxValue = Math.max(...values, 0);
-    if (!Number.isFinite(maxValue) || maxValue <= 0) {
-      return { suggestedMax: 5, stepSize: 1 };
-    }
-    const exponent = Math.floor(Math.log10(maxValue));
-    const magnitude = Math.pow(10, exponent);
-    const normalized = maxValue / magnitude;
-    let niceNormalized;
-    if (normalized <= 1) niceNormalized = 1;
-    else if (normalized <= 2) niceNormalized = 2;
-    else if (normalized <= 5) niceNormalized = 5;
-    else niceNormalized = 10;
-    const suggestedMax = niceNormalized * magnitude;
-    return {
-      suggestedMax,
-      stepSize: Math.max(1, Math.round(suggestedMax / 5))
     };
   }
 })();

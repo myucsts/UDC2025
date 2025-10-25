@@ -15,7 +15,7 @@
         <p class="eyebrow">埼玉県オープンデータ（AED設置施設）</p>
         <h1>市区町村別に見る AED 設置状況</h1>
         <p>
-          県が公開している AED 設置地点（13,000 件超）を地図とグラフで可視化しました。
+          県が公開している AED 設置地点（13,000 件超）を地図で可視化しました。
           市区町村やキーワードで絞り込み、近隣の設置場所を素早く探せます。
         </p>
       </div>
@@ -64,14 +64,6 @@
           </article>
         </div>
 
-        <div class="chart-card">
-          <div class="card-header">
-            <h2>市区町村別 AED 設置数（上位 20）</h2>
-            <p>棒グラフをクリックすると該当自治体へフォーカスします。</p>
-          </div>
-          <canvas id="cityChart" aria-label="市区町村別 AED 設置数"></canvas>
-        </div>
-
         <div class="table-card">
           <div class="card-header">
             <h2>ヒットした設置場所（最大 30 件）</h2>
@@ -91,7 +83,6 @@
 
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="vendor/leaflet-markercluster/leaflet.markercluster.js" defer></script>
-    <script src="vendor/chartjs/chart.umd.min.js" defer></script>
     <script src="main.js" defer></script>
   </body>
 </html>
