@@ -108,6 +108,7 @@ a {
 }
 
 #map {
+  height: 70vh;
   height: min(70vh, 640px);
   border-radius: 1rem;
   border: 1px solid var(--border);

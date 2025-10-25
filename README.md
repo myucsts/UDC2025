@@ -18,3 +18,7 @@
 - オープンデータポータル: https://opendata.pref.saitama.lg.jp/
 
 `data/aed.geojson` に取得済みデータを格納しています。最新情報へ差し替える場合は同じパスへ GeoJSON を配置してください。
+
+## 同梱ライブラリ
+
+ネットワーク制限環境でも表示できるように、Leaflet / Leaflet.markercluster / Chart.js を `vendor/` 以下へ同梱しています。アップデートが必要な場合は該当バージョンをダウンロードして置き換えてください。
