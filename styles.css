@@ -169,6 +169,7 @@ a {
   border: 1px solid var(--border);
   padding: 1rem 1.25rem;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  min-height: 0;
 }
 
 .stat-label {
@@ -189,9 +190,6 @@ a {
   border: 1px solid var(--border);
   padding: 1.25rem;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-}
-
-.table-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
