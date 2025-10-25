@@ -197,6 +197,8 @@
     const topCities = Array.from(cityCountMap.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20);
+    const counts = topCities.map(([, count]) => count);
+    const yAxisScale = getNiceScale(counts);
 
     const ctx = document.getElementById('cityChart').getContext('2d');
     chartInstance = new Chart(ctx, {
@@ -232,6 +234,11 @@
           },
           y: {
             beginAtZero: true,
+            suggestedMax: yAxisScale.suggestedMax,
+            ticks: {
+              stepSize: yAxisScale.stepSize,
+              callback: (value) => `${value} 件`
+            },
             title: { display: true, text: '件数' }
           }
         }
@@ -293,6 +300,26 @@
     return (...args) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => fn.apply(null, args), wait);
+    };
+  }
+
+  function getNiceScale(values = []) {
+    const maxValue = Math.max(...values, 0);
+    if (!Number.isFinite(maxValue) || maxValue <= 0) {
+      return { suggestedMax: 5, stepSize: 1 };
+    }
+    const exponent = Math.floor(Math.log10(maxValue));
+    const magnitude = Math.pow(10, exponent);
+    const normalized = maxValue / magnitude;
+    let niceNormalized;
+    if (normalized <= 1) niceNormalized = 1;
+    else if (normalized <= 2) niceNormalized = 2;
+    else if (normalized <= 5) niceNormalized = 5;
+    else niceNormalized = 10;
+    const suggestedMax = niceNormalized * magnitude;
+    return {
+      suggestedMax,
+      stepSize: Math.max(1, Math.round(suggestedMax / 5))
     };
   }
 })();
