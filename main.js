@@ -31,9 +31,13 @@
   let sourceUpdatedAt = null;
   let lastLoadedAt = null;
 
+  const DEFAULT_MAP_CENTER = [35.99, 139.66];
+  const DEFAULT_MAP_ZOOM = 9;
+  const USER_LOCATION_ZOOM = 13;
+
   const map = L.map('map', {
-    center: [35.99, 139.66],
-    zoom: 9,
+    center: DEFAULT_MAP_CENTER,
+    zoom: DEFAULT_MAP_ZOOM,
     minZoom: 7,
     maxZoom: 17,
     scrollWheelZoom: true,
@@ -51,6 +55,8 @@
     spiderfyOnMaxZoom: false
   });
   map.addLayer(clusterGroup);
+
+  attemptUserLocationCentering();
 
   init();
 
@@ -365,5 +371,26 @@
     if (!refreshButton) return;
     refreshButton.disabled = isLoading;
     refreshButton.textContent = isLoading ? '取得中...' : '最新データを取得';
+  }
+
+  function attemptUserLocationCentering() {
+    if (!('geolocation' in navigator)) return;
+    getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 })
+      .then((position) => {
+        const { latitude, longitude } = position.coords;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+        const userLatLng = [latitude, longitude];
+        const targetZoom = Math.max(map.getZoom(), USER_LOCATION_ZOOM);
+        map.setView(userLatLng, targetZoom, { animate: false });
+      })
+      .catch((error) => {
+        console.warn('Failed to obtain user location', error);
+      });
+  }
+
+  function getCurrentPosition(options = {}) {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
   }
 })();
