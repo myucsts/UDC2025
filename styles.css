@@ -199,6 +199,8 @@ a {
   border-radius: 0.75rem;
   border: 1px solid var(--border);
   background: #fafbff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .result-list h3 {
@@ -210,6 +212,11 @@ a {
   margin: 0;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.result-list li.active {
+  border-color: var(--accent);
+  background: rgba(31, 122, 140, 0.08);
 }
 
 .site-footer {

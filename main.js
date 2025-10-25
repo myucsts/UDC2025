@@ -15,6 +15,8 @@
   let allSites = [];
   let filteredSites = [];
   let cityCountMap = new Map();
+  let markerStore = new Map();
+  let activeSiteId = null;
 
   const map = L.map('map', {
     center: [35.99, 139.66],
@@ -128,6 +130,10 @@
         .some((field) => String(field || '').toLowerCase().includes(normalizedKeyword));
     });
 
+    if (!filteredSites.some((site) => site.id === activeSiteId)) {
+      activeSiteId = null;
+    }
+
     updateStats();
     renderMarkers(filteredSites, { fitToData: shouldFit });
     renderList(filteredSites);
@@ -135,10 +141,15 @@
 
   function renderMarkers(data, { fitToData } = { fitToData: false }) {
     clusterGroup.clearLayers();
+    markerStore = new Map();
     data.forEach((site) => {
       const marker = L.marker([site.lat, site.lng]);
       marker.bindPopup(createPopup(site));
+      marker.on('click', () => {
+        focusSite(site, { shouldScroll: true, focusMap: false });
+      });
       clusterGroup.addLayer(marker);
+      markerStore.set(site.id, marker);
     });
 
     if (fitToData && data.length) {
@@ -161,6 +172,8 @@
     const fragment = document.createDocumentFragment();
     items.forEach((site) => {
       const li = document.createElement('li');
+      li.dataset.siteId = String(site.id);
+      li.tabIndex = 0;
       const title = document.createElement('h3');
       title.textContent = site.name;
       const details = document.createElement('p');
@@ -171,9 +184,17 @@
       ].join('<br>');
       li.appendChild(title);
       li.appendChild(details);
+      li.addEventListener('click', () => focusSite(site, { shouldScroll: false }));
+      li.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          focusSite(site, { shouldScroll: false });
+        }
+      });
       fragment.appendChild(li);
     });
     resultListEl.appendChild(fragment);
+    setActiveListItem();
   }
 
   function updateStats() {
@@ -218,5 +239,29 @@
       clearTimeout(timeout);
       timeout = setTimeout(() => fn.apply(null, args), wait);
     };
+  }
+
+  function focusSite(site, { shouldScroll = true, focusMap = true } = {}) {
+    activeSiteId = site.id;
+    const marker = markerStore.get(site.id);
+    if (marker) {
+      if (focusMap) {
+        const targetZoom = Math.max(map.getZoom(), 14);
+        map.setView(marker.getLatLng(), targetZoom, { animate: true });
+      }
+      marker.openPopup();
+    }
+    setActiveListItem({ shouldScroll });
+  }
+
+  function setActiveListItem({ shouldScroll = false } = {}) {
+    const items = resultListEl.querySelectorAll('li[data-site-id]');
+    items.forEach((item) => {
+      const isActive = item.dataset.siteId === String(activeSiteId);
+      item.classList.toggle('active', isActive);
+      if (isActive && shouldScroll) {
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
   }
 })();
