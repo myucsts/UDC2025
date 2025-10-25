@@ -12,6 +12,10 @@
     hour: '2-digit',
     minute: '2-digit'
   });
+  const distanceFmt = new Intl.NumberFormat('ja-JP', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  });
 
   const citySelect = document.getElementById('citySelect');
   const searchInput = document.getElementById('searchInput');
@@ -30,6 +34,7 @@
   let activeSiteId = null;
   let sourceUpdatedAt = null;
   let lastLoadedAt = null;
+  let userLocation = null;
 
   const DEFAULT_MAP_CENTER = [35.99, 139.66];
   const DEFAULT_MAP_ZOOM = 9;
@@ -92,7 +97,8 @@
     cityCountMap = buildCityCountMap(allSites);
     const nextCity = preserveCitySelection && cityCountMap.has(previousCity) ? previousCity : 'all';
     populateCitySelect(nextCity);
-    applyFilters({ shouldFit: fitToData });
+    const shouldFitMap = fitToData && !userLocation;
+    applyFilters({ shouldFit: shouldFitMap });
   }
 
   function normalizeFeature(feature, index) {
@@ -174,6 +180,21 @@
         .some((field) => String(field || '').toLowerCase().includes(normalizedKeyword));
     });
 
+    if (userLocation) {
+      filteredSites.forEach((site) => {
+        site.distanceKm = computeDistanceKm(userLocation.lat, userLocation.lng, site.lat, site.lng);
+      });
+      filteredSites.sort((a, b) => {
+        const distanceA = Number.isFinite(a.distanceKm) ? a.distanceKm : Number.POSITIVE_INFINITY;
+        const distanceB = Number.isFinite(b.distanceKm) ? b.distanceKm : Number.POSITIVE_INFINITY;
+        return distanceA - distanceB;
+      });
+    } else {
+      filteredSites.forEach((site) => {
+        delete site.distanceKm;
+      });
+    }
+
     if (!filteredSites.some((site) => site.id === activeSiteId)) {
       activeSiteId = null;
     }
@@ -211,7 +232,11 @@
     }
 
     const items = data.slice(0, MAX_LIST_ITEMS);
-    listSummaryEl.textContent = `${numberFmt.format(data.length)} 件中 ${items.length} 件を表示`;
+    let summaryText = `${numberFmt.format(data.length)} 件中 ${items.length} 件を表示`;
+    if (userLocation) {
+      summaryText += '（現在地に近い順）';
+    }
+    listSummaryEl.textContent = summaryText;
 
     const fragment = document.createDocumentFragment();
     items.forEach((site) => {
@@ -221,11 +246,15 @@
       const title = document.createElement('h3');
       title.textContent = site.name;
       const details = document.createElement('p');
-      details.innerHTML = [
+      const detailLines = [
         `${escapeHtml(site.city)} / ${escapeHtml(site.address)}`,
         `設置場所: ${escapeHtml(site.location)}`,
         `利用可能: ${escapeHtml(site.availableDays)} ${escapeHtml(site.availableHours)}`
-      ].join('<br>');
+      ];
+      if (Number.isFinite(site.distanceKm)) {
+        detailLines.push(`現在地から約 ${distanceFmt.format(site.distanceKm)} km`);
+      }
+      details.innerHTML = detailLines.join('<br>');
       li.appendChild(title);
       li.appendChild(details);
       li.addEventListener('click', () => focusSite(site, { shouldScroll: false }));
@@ -379,9 +408,7 @@
       .then((position) => {
         const { latitude, longitude } = position.coords;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-        const userLatLng = [latitude, longitude];
-        const targetZoom = Math.max(map.getZoom(), USER_LOCATION_ZOOM);
-        map.setView(userLatLng, targetZoom, { animate: false });
+        setUserLocation(latitude, longitude);
       })
       .catch((error) => {
         console.warn('Failed to obtain user location', error);
@@ -392,5 +419,27 @@
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, options);
     });
+  }
+
+  function setUserLocation(latitude, longitude) {
+    userLocation = { lat: latitude, lng: longitude };
+    const userLatLng = [latitude, longitude];
+    const targetZoom = Math.max(map.getZoom(), USER_LOCATION_ZOOM);
+    map.setView(userLatLng, targetZoom, { animate: false });
+    if (allSites.length) {
+      applyFilters({ shouldFit: false });
+    }
+  }
+
+  function computeDistanceKm(lat1, lng1, lat2, lng2) {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371; // Earth radius in kilometers
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 })();
