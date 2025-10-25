@@ -1,8 +1,17 @@
 (() => {
-  const DATA_URL = 'data/aed.geojson';
+  const LOCAL_DATA_URL = 'data/aed.geojson';
+  const REMOTE_DATA_URL = 'https://services9.arcgis.com/n65w8AXGaYPTqFYI/arcgis/rest/services/AED_setting_facilities/FeatureServer/0/query?where=1=1&outFields=*&outSR=4326&f=geojson';
+  const METADATA_URL = 'https://services9.arcgis.com/n65w8AXGaYPTqFYI/arcgis/rest/services/AED_setting_facilities/FeatureServer/0?f=pjson';
   const MAX_LIST_ITEMS = 30;
   const numberFmt = new Intl.NumberFormat('ja-JP');
   const collator = new Intl.Collator('ja-JP');
+  const dateTimeFmt = new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
   const citySelect = document.getElementById('citySelect');
   const searchInput = document.getElementById('searchInput');
@@ -11,12 +20,16 @@
   const filteredCountEl = document.getElementById('filteredCount');
   const listSummaryEl = document.getElementById('listSummary');
   const resultListEl = document.getElementById('resultList');
+  const dataTimestampEl = document.getElementById('dataTimestamp');
+  const refreshButton = document.getElementById('refreshDataButton');
 
   let allSites = [];
   let filteredSites = [];
   let cityCountMap = new Map();
   let markerStore = new Map();
   let activeSiteId = null;
+  let sourceUpdatedAt = null;
+  let lastLoadedAt = null;
 
   const map = L.map('map', {
     center: [35.99, 139.66],
@@ -43,27 +56,37 @@
 
   async function init() {
     try {
-      const response = await fetch(DATA_URL);
-      if (!response.ok) {
-        throw new Error(`データの取得に失敗しました（HTTP ${response.status}）`);
-      }
-      const geojson = await response.json();
-      allSites = (geojson.features || [])
-        .map(normalizeFeature)
-        .filter((site) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
-
-      cityCountMap = buildCityCountMap(allSites);
-      filteredSites = [...allSites];
-
-      updateStats();
-      populateCitySelect();
-      renderMarkers(filteredSites, { fitToData: true });
-      renderList(filteredSites);
-      bindEvents();
+      await loadData(LOCAL_DATA_URL, { fitToData: true });
     } catch (error) {
       console.error(error);
-      listSummaryEl.textContent = 'データの取得に失敗しました。ページを再読み込みしてください。';
+      listSummaryEl.textContent = 'ローカルデータの読み込みに失敗しました。ページを再読み込みしてください。';
+      return;
     }
+    fetchMetadata();
+    bindEvents();
+  }
+
+  async function loadData(dataUrl, { fitToData = false, preserveCitySelection = false } = {}) {
+    const response = await fetch(dataUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`データの取得に失敗しました（HTTP ${response.status}）`);
+    }
+    const geojson = await response.json();
+    ingestDataset(geojson, { fitToData, preserveCitySelection });
+    lastLoadedAt = new Date();
+    renderTimestamp();
+  }
+
+  function ingestDataset(geojson, { fitToData = false, preserveCitySelection = false } = {}) {
+    const previousCity = citySelect.value || 'all';
+    allSites = (geojson.features || [])
+      .map(normalizeFeature)
+      .filter((site) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
+
+    cityCountMap = buildCityCountMap(allSites);
+    const nextCity = preserveCitySelection && cityCountMap.has(previousCity) ? previousCity : 'all';
+    populateCitySelect(nextCity);
+    applyFilters({ shouldFit: fitToData });
   }
 
   function normalizeFeature(feature, index) {
@@ -94,18 +117,29 @@
     return map;
   }
 
-  function populateCitySelect() {
+  function populateCitySelect(selectedCity = 'all') {
     const options = Array.from(cityCountMap.entries())
       .sort((a, b) => collator.compare(a[0], b[0]));
 
     const fragment = document.createDocumentFragment();
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = '全ての市区町村';
+    fragment.appendChild(allOption);
+
     options.forEach(([city, count]) => {
       const option = document.createElement('option');
       option.value = city;
       option.textContent = `${city}（${numberFmt.format(count)}）`;
       fragment.appendChild(option);
     });
-    citySelect.appendChild(fragment);
+
+    citySelect.replaceChildren(fragment);
+    if (selectedCity !== 'all' && !cityCountMap.has(selectedCity)) {
+      citySelect.value = 'all';
+      return;
+    }
+    citySelect.value = selectedCity;
   }
 
   function bindEvents() {
@@ -115,6 +149,10 @@
 
     const debouncedSearch = debounce(() => applyFilters({ shouldFit: false }), 250);
     searchInput.addEventListener('input', debouncedSearch);
+
+    if (refreshButton) {
+      refreshButton.addEventListener('click', handleRefreshClick);
+    }
   }
 
   function applyFilters({ shouldFit } = { shouldFit: false }) {
@@ -263,5 +301,69 @@
         item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
+  }
+
+  async function handleRefreshClick() {
+    if (refreshButton?.disabled) return;
+    setRefreshButtonState(true);
+    try {
+      await loadData(REMOTE_DATA_URL, { fitToData: true, preserveCitySelection: true });
+      await fetchMetadata();
+    } catch (error) {
+      console.error(error);
+      renderTimestamp('最新データの取得に失敗しました');
+    } finally {
+      setRefreshButtonState(false);
+    }
+  }
+
+  async function fetchMetadata() {
+    if (!dataTimestampEl) return;
+    try {
+      const response = await fetch(METADATA_URL, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`メタデータの取得に失敗しました（HTTP ${response.status}）`);
+      }
+      const metadata = await response.json();
+      const timestamp = metadata?.editingInfo?.dataLastEditDate;
+      if (Number.isFinite(timestamp)) {
+        sourceUpdatedAt = new Date(timestamp);
+        renderTimestamp();
+      } else {
+        renderTimestamp('県公開データの最終更新日時が取得できませんでした');
+      }
+    } catch (error) {
+      console.error(error);
+      renderTimestamp('県公開データのメタデータ取得に失敗しました');
+    }
+  }
+
+  function renderTimestamp(extraMessage) {
+    if (!dataTimestampEl) return;
+    const parts = [];
+    if (sourceUpdatedAt) {
+      parts.push(`県公開データ最終更新: ${formatDateTime(sourceUpdatedAt)}`);
+    }
+    if (lastLoadedAt) {
+      parts.push(`画面に反映: ${formatDateTime(lastLoadedAt)}`);
+    }
+    let text = parts.join(' / ');
+    if (!text) {
+      text = 'データ更新情報: 未取得';
+    }
+    if (extraMessage) {
+      text = `${text} / ${extraMessage}`;
+    }
+    dataTimestampEl.textContent = text;
+  }
+
+  function formatDateTime(date) {
+    return dateTimeFmt.format(date);
+  }
+
+  function setRefreshButtonState(isLoading) {
+    if (!refreshButton) return;
+    refreshButton.disabled = isLoading;
+    refreshButton.textContent = isLoading ? '取得中...' : '最新データを取得';
   }
 })();
