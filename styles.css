@@ -96,6 +96,7 @@ a {
   gap: 1.25rem;
   padding: 1rem clamp(1.5rem, 4vw, 3rem) 1.25rem;
   min-height: 0;
+  align-items: flex-start;
 }
 
 .map-panel {
@@ -103,7 +104,9 @@ a {
   flex-direction: column;
   gap: 1rem;
   min-height: 0;
-  height: 100%;
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
 }
 
 .map-controls {
@@ -143,7 +146,8 @@ a {
 
 #map {
   flex: 1;
-  min-height: 320px;
+  min-height: 360px;
+  height: clamp(360px, 60vh, 720px);
   border-radius: 1rem;
   border: 1px solid var(--border);
   box-shadow: 0 15px 40px rgba(15, 23, 42, 0.12);
@@ -255,8 +259,14 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .map-panel {
+    position: static;
+    top: auto;
+  }
+
   #map {
     min-height: 320px;
+    height: auto;
   }
 }
 
