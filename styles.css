@@ -145,7 +145,6 @@ a {
 .map-card {
   flex: 1;
   min-height: 360px;
-  height: clamp(360px, 60vh, 720px);
   position: sticky;
   top: 1rem;
   border-radius: 1rem;
@@ -153,6 +152,7 @@ a {
   box-shadow: 0 15px 40px rgba(15, 23, 42, 0.12);
   background: var(--panel);
   overflow: hidden;
+  aspect-ratio: 1 / 1;
 }
 
 #map {
@@ -270,6 +270,7 @@ a {
     position: static;
     height: auto;
     min-height: 320px;
+    aspect-ratio: auto;
   }
 
   #map {
