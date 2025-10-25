@@ -282,6 +282,7 @@
 
   function createPopup(site) {
     const directionsUrl = buildDirectionsUrl(site);
+    const guideLabel = userLocation ? '現在地から道案内' : '道案内';
     return `
       <strong>${escapeHtml(site.name)}</strong><br>
       ${escapeHtml(site.city)} / ${escapeHtml(site.address)}<br>
@@ -289,7 +290,9 @@
       利用可能: ${escapeHtml(site.availableDays)} ${escapeHtml(site.availableHours)}<br>
       パッド: ${escapeHtml(site.padType)}<br>
       電話: ${escapeHtml(site.phone || '―')}<br>
-      <a class="popup-directions" href="${escapeHtml(directionsUrl)}" target="_blank" rel="noreferrer noopener">道案内</a>
+      <a class="popup-directions" href="${escapeHtml(
+        directionsUrl
+      )}" target="_blank" rel="noreferrer noopener">${guideLabel}</a>
     `;
   }
 
@@ -450,14 +453,27 @@
   }
 
   function buildDirectionsUrl(site) {
+    const params = new URLSearchParams();
+    params.set('api', '1');
+    const destination = buildDestinationQuery(site);
+    params.set('destination', destination);
+    if (userLocation) {
+      const { lat, lng } = userLocation;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        params.set('origin', `${lat},${lng}`);
+        params.set('travelmode', 'walking');
+      }
+    }
+    return `https://www.google.com/maps/dir/?${params.toString()}`;
+  }
+
+  function buildDestinationQuery(site) {
     const lat = Number(site.lat);
     const lng = Number(site.lng);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      const destination = encodeURIComponent(`${lat},${lng}`);
-      return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+      return `${lat},${lng}`;
     }
-    const query = encodeURIComponent(site.address || site.name || 'AED');
-    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+    return site.address || site.name || 'AED';
   }
 
   function createDirectionsLink(site) {
@@ -466,7 +482,7 @@
     link.href = buildDirectionsUrl(site);
     link.target = '_blank';
     link.rel = 'noreferrer noopener';
-    link.textContent = '道案内';
+    link.textContent = userLocation ? '現在地から道案内' : '道案内';
     link.setAttribute('aria-label', `${site.name} への道案内を開く`);
     link.addEventListener('click', (event) => event.stopPropagation());
     return link;
